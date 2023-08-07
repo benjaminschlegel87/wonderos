@@ -20,6 +20,10 @@ path = "src/example/bin/ex3.rs"
 name = "example_4"
 path = "src/example/bin/ex4.rs"
 
+[[bin]]
+name = "example_5"
+path = "src/example/bin/ex5.rs"
+
 
 [dependencies]
 cortex-m = { version = "0.7", features = ["critical-section-single-core"] }

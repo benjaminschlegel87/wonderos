@@ -1,4 +1,5 @@
 #![no_std]
+pub mod async_spi;
 pub mod button;
 pub mod led;
 pub mod stm32f3_disco_def;

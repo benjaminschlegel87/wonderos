@@ -1,10 +1,8 @@
 #![no_main]
 #![no_std]
 use core::convert::Infallible;
-use core::future::Future;
 use core::panic::PanicInfo;
 use core::pin::pin;
-use core::task::Poll;
 use core::time::Duration;
 use defmt::println;
 use defmt_rtt as _;
@@ -14,102 +12,89 @@ use nb::block;
 use stm32f3xx_hal::pac::{CorePeripherals, Peripherals};
 use stm32f3xx_hal::prelude::_embedded_hal_blocking_spi_Transfer;
 use stm32f3xx_hal::time::fixed_point::FixedPoint;
-use wonderos::stm32f3_disco_def::Board;
+use wonderos::async_spi::{async_read, async_transfer, async_write};
+use wonderos::led::Led;
+use wonderos::stm32f3_disco_def::{Board, GyroCs, GyroSpi, NorthEastLed};
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
     loop {}
 }
-struct AsynSpiRead<'a, T: FullDuplex<u8>> {
-    spi: &'a mut T,
-}
 
-impl<'a, T: FullDuplex<u8>> Future for AsynSpiRead<'a, T> {
-    type Output = Result<u8, ()>;
-
-    fn poll(
-        mut self: core::pin::Pin<&mut Self>,
-        _cx: &mut core::task::Context<'_>,
-    ) -> core::task::Poll<Self::Output> {
-        let r = self.spi.read();
-        match r {
-            Ok(res) => Poll::Ready(Ok(res)),
-            Err(nb::Error::Other(_)) => Poll::Ready(Err(())),
-            Err(nb::Error::WouldBlock) => {
-                println!("would block");
-                return Poll::Pending;
-            }
-        }
-    }
-}
-
-struct AsynSpiWrite<'a, T: FullDuplex<u8>> {
-    spi: &'a mut T,
-    payload: u8,
-}
-impl<'a, T: FullDuplex<u8>> Future for AsynSpiWrite<'a, T> {
-    type Output = Result<(), ()>;
-
-    fn poll(
-        mut self: core::pin::Pin<&mut Self>,
-        _cx: &mut core::task::Context<'_>,
-    ) -> core::task::Poll<Self::Output> {
-        let p = self.payload;
-        let r = self.spi.send(p);
-        match r {
-            Ok(_) => Poll::Ready(Ok(())),
-            Err(nb::Error::Other(_)) => Poll::Ready(Err(())),
-            Err(nb::Error::WouldBlock) => Poll::Pending,
-        }
-    }
-}
 const CMD: u8 = 143; // [Bit 7 = 1 (Read), Bit 6 = 0 (Not increment adr), Bit 5..0 = 0xF (adr who am i)]
+
+fn blocking_who_am_i(spi: &mut GyroSpi, cs: &mut GyroCs) {
+    let _ = cs.set_low();
+    println!("Cmd {}", CMD);
+    block!(spi.send(CMD)).unwrap();
+    let res = block!(spi.read()).unwrap();
+    println!("Res {}", res);
+    block!(spi.send(0 as u8)).unwrap();
+    let res = block!(spi.read()).unwrap();
+    println!("Res {}", res);
+
+    let _ = cs.set_high();
+}
+
+fn transfer_blocking_who_am_i(spi: &mut GyroSpi, cs: &mut GyroCs) {
+    let _ = cs.set_low();
+    let mut payload = [CMD, 0];
+    let r = spi.transfer(&mut payload).unwrap();
+    println!(" other res {}", r);
+    let _ = cs.set_high();
+}
 #[cortex_m_rt::entry]
 fn main() -> ! {
     let mut core = CorePeripherals::take().unwrap();
     let p = Peripherals::take().unwrap();
     let mut b = Board::new(p);
-    let _ = b.gyro_cs.set_low();
-    let mut cmd: u8 = 3 << 7;
-    cmd |= 0xF;
-    println!("Cmd {}", cmd);
-    block!(b.gyro_spi.send(cmd)).unwrap();
-    let res = block!(b.gyro_spi.read()).unwrap();
-    println!("Res {}", res);
-    block!(b.gyro_spi.send(0 as u8)).unwrap();
-    let res = block!(b.gyro_spi.read()).unwrap();
-    println!("Res {}", res);
+    let mut spi = b.gyro_spi;
+    let mut cs = b.gyro_cs;
 
-    let _ = b.gyro_cs.set_high();
+    // Read Who Am I Register with Trait Methods from embedded-hal read and send + nb crate block! macro
+    blocking_who_am_i(&mut spi, &mut cs);
+    // Read Who Am I Register with Trait Method from stm32f3xx_hal::prelude::embedded_hal_blocking_spi_transfer => transfer function
+    transfer_blocking_who_am_i(&mut spi, &mut cs);
 
-    let _ = b.gyro_cs.set_low();
-    let mut payload = [cmd, 0];
-    let r = b.gyro_spi.transfer(&mut payload).unwrap();
-    println!(" other res {}", r);
-
-    let _ = b.gyro_cs.set_high();
-    let read = pin!(read_who_am_i_async(&mut b.gyro_spi, &mut b.gyro_cs));
+    let read = pin!(read_who_am_i_async(&mut spi, &mut cs));
     let wake = pin!(wake());
+    let blink = pin!(blink_parallel(&mut b.northeast_led));
 
     lilos::time::initialize_sys_tick(&mut core.SYST, b.clocks.sysclk().integer());
-    lilos::exec::run_tasks(&mut [read, wake], lilos::exec::ALL_TASKS);
+    lilos::exec::run_tasks(&mut [read, blink, wake], lilos::exec::ALL_TASKS);
 }
 
-async fn read_who_am_i_async(
-    spi: &mut wonderos::stm32f3_disco_def::GyroSpi,
-    cs: &mut wonderos::stm32f3_disco_def::GyroCs,
-) -> Infallible {
+async fn read_who_am_i_async(spi: &mut GyroSpi, cs: &mut GyroCs) -> Infallible {
+    let mut once = false;
     loop {
-        cs.set_low().expect("");
-        AsynSpiWrite { spi, payload: CMD }.await.unwrap();
-        println!("Res {}", AsynSpiRead { spi }.await.unwrap());
-        AsynSpiWrite {
-            spi,
-            payload: 0 as u8,
+        // Here we run this once
+        if once == false {
+            // Once by our own async write and read implementation
+            cs.set_low().expect("");
+            async_write(spi, CMD).await.unwrap();
+            async_read(spi).await.unwrap();
+            async_write(spi, 0 as u8).await.unwrap();
+            println!("Who am I is 0b{:b}", async_read(spi).await.unwrap());
+            cs.set_high().expect("");
+            lilos::exec::sleep_for(Duration::from_millis(1000)).await;
+
+            // And once with our async transfer impl
+            cs.set_low().expect("");
+            let mut buf = [CMD, 0];
+            let res = async_transfer(spi, &mut buf).await.unwrap();
+            println!("Other who Am I {}", res);
+            cs.set_high().expect("");
+            lilos::exec::sleep_for(Duration::from_millis(1000)).await;
+            once = true;
+        } else {
+            // just yield after running once
+            lilos::exec::yield_cpu().await
         }
-        .await
-        .unwrap();
-        println!("Res {}", AsynSpiRead { spi }.await.unwrap());
-        cs.set_high().expect("");
+    }
+}
+
+async fn blink_parallel(led: &mut NorthEastLed) -> Infallible {
+    loop {
+        led.toggle();
         lilos::exec::sleep_for(Duration::from_millis(1000)).await
     }
 }

@@ -4,7 +4,7 @@ use stm32f3xx_hal::gpio::{Alternate, Gpioa, Gpioe, Input, Output, Pin, PushPull,
 use stm32f3xx_hal::prelude::*;
 use stm32f3xx_hal::rcc::Clocks;
 use stm32f3xx_hal::spi::{config::Config, Spi};
-use stm32f3xx_hal::time::rate::{Generic, Kilohertz, Megahertz};
+use stm32f3xx_hal::time::rate::Kilohertz;
 pub type NorthEastLed = SimpleLed<Pin<Gpioe, U<8>, Output<PushPull>>>;
 pub type NorthLed = SimpleLed<Pin<Gpioe, U<9>, Output<PushPull>>>;
 pub type NorthWestLed = SimpleLed<Pin<Gpioe, U<10>, Output<PushPull>>>;
