@@ -33,6 +33,10 @@ pub type GyroScl = Pin<Gpiob, U<6>, Alternate<OpenDrain, 4>>;
 pub type GyroSda = Pin<Gpiob, U<7>, Alternate<OpenDrain, 4>>;
 pub type GyroI2c = I2c<stm32f3xx_hal::pac::I2C1, (GyroScl, GyroSda)>;
 
+pub type OtherScl = Pin<Gpioa, U<9>, Alternate<OpenDrain, 4>>;
+pub type OtherSda = Pin<Gpioa, U<10>, Alternate<OpenDrain, 4>>;
+pub type OtherI2c = I2c<stm32f3xx_hal::pac::I2C2, (OtherScl, OtherSda)>;
+
 pub struct Board {
     pub northeast_led: NorthEastLed,
     pub north_led: NorthLed,
@@ -47,6 +51,7 @@ pub struct Board {
     pub gyro_cs: GyroCs,
     pub gyro_i2c: GyroI2c,
     pub clocks: Clocks,
+    pub other_i2c: OtherI2c,
 }
 
 impl Board {
@@ -128,6 +133,24 @@ impl Board {
 
         let i2c = I2c::new(p.I2C1, (scl, sda), 100000.Hz(), r, &mut rcc.apb1);
 
+        let other_scl =
+            gpioa
+                .pa9
+                .into_af_open_drain::<4>(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
+        let other_sda = gpioa.pa10.into_af_open_drain::<4>(
+            &mut gpioa.moder,
+            &mut gpioa.otyper,
+            &mut gpioa.afrh,
+        );
+
+        let other_i2c = I2c::new(
+            p.I2C2,
+            (other_scl, other_sda),
+            100000.Hz(),
+            r,
+            &mut rcc.apb1,
+        );
+
         let ba = Board {
             northeast_led,
             north_led,
@@ -142,6 +165,7 @@ impl Board {
             gyro_cs: pe3,
             gyro_i2c: i2c,
             clocks: r,
+            other_i2c,
         };
 
         ba

@@ -1,29 +1,32 @@
 use core::future::Future;
-use stm32f3xx_hal::i2c::{Error, I2c, SclPin, SdaPin};
-use stm32f3xx_hal::pac::I2C1;
+use stm32f3xx_hal::i2c::{Error, I2c, Instance, SclPin, SdaPin};
 
-/// We build on top of HALs I2c< Instance, Pins> so we can reuse all the enable and clock selection stuff
+/// We build on top of [stm32f3xx_hal::i2c::I2c] so we can reuse all the enable and clock selection stuff
 /// We only implement async read/write on top
-pub struct I2cNoIrq<SCL, SDA> {
-    i2c: I2c<I2C1, (SCL, SDA)>,
+pub struct I2cNoIrq<T: Instance, SCL, SDA> {
+    i2c: I2c<T, (SCL, SDA)>,
     adr: u8,
 }
 
-impl<SCL, SDA> I2cNoIrq<SCL, SDA> {
-    pub fn new(i2c: I2c<I2C1, (SCL, SDA)>, adr: u8) -> Self
+impl<T: Instance, SCL, SDA> I2cNoIrq<T, SCL, SDA> {
+    /// Creates an Async I2C without interrupt use by consuming a HAL Instance of I2c
+    ///
+    /// We use the HAL I2c to reuse all the clock selection and enabling work done by the new
+    /// function of the [stm32f3xx_hal::i2c::I2c] struct.
+    pub fn new(i2c: I2c<T, (SCL, SDA)>, adr: u8) -> Self
     where
-        SCL: SclPin<I2C1>,
-        SDA: SdaPin<I2C1>,
+        SCL: SclPin<T>,
+        SDA: SdaPin<T>,
     {
         Self { i2c, adr }
     }
 }
-struct AsyncI2cWrite<'a, SCL, SDA> {
-    i2c: &'a mut I2cNoIrq<SCL, SDA>,
+struct AsyncI2cWrite<'a, T: Instance, SCL, SDA> {
+    i2c: &'a mut I2cNoIrq<T, SCL, SDA>,
     buf: &'a [u8],
     cnt: u8,
 }
-impl<'a, SCL, SDA> Future for AsyncI2cWrite<'a, SCL, SDA> {
+impl<'a, T: Instance, SCL, SDA> Future for AsyncI2cWrite<'a, T, SCL, SDA> {
     type Output = Result<(), Error>;
 
     fn poll(
@@ -62,12 +65,12 @@ impl<'a, SCL, SDA> Future for AsyncI2cWrite<'a, SCL, SDA> {
         }
     }
 }
-struct AsyncI2c<'a, SCL, SDA> {
-    i2c: &'a mut I2cNoIrq<SCL, SDA>,
+struct AsyncI2c<'a, T: Instance, SCL, SDA> {
+    i2c: &'a mut I2cNoIrq<T, SCL, SDA>,
     buf: &'a mut [u8],
     cnt: u8,
 }
-impl<'a, SCL, SDA> Future for AsyncI2c<'a, SCL, SDA> {
+impl<'a, T: Instance, SCL, SDA> Future for AsyncI2c<'a, T, SCL, SDA> {
     type Output = Result<(), Error>;
 
     fn poll(
@@ -107,7 +110,7 @@ impl<'a, SCL, SDA> Future for AsyncI2c<'a, SCL, SDA> {
     }
 }
 
-impl<SCL, SDA> I2cNoIrq<SCL, SDA> {
+impl<T: Instance, SCL, SDA> I2cNoIrq<T, SCL, SDA> {
     pub async fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         // start transfer
         let p = unsafe { self.i2c.peripheral() };
