@@ -8,7 +8,7 @@ use core::pin::Pin;
 use defmt::println;
 use defmt_rtt as _;
 
-use stm32f3xx_hal::pac::CorePeripherals as _;
+use stm32f3xx_hal as _;
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
     loop {}

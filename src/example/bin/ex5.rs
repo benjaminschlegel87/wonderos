@@ -11,7 +11,7 @@ use embedded_hal::spi::FullDuplex;
 use lilos::handoff::{Handoff, Pop, Push};
 use stm32f3xx_hal::pac::{CorePeripherals, Peripherals};
 use stm32f3xx_hal::time::fixed_point::FixedPoint;
-use wonderos::async_spi::{async_read, async_transfer, async_write};
+use wonderos::l3gd20::async_spi::{async_read, async_transfer, async_write};
 use wonderos::led::Led;
 use wonderos::stm32f3_disco_def::{Board, GyroCs, GyroSpi, NorthEastLed, NorthLed};
 

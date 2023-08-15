@@ -8,11 +8,11 @@ use defmt::println;
 use defmt_rtt as _;
 use lilos::exec::sleep_for;
 use lilos::exec::{wake_tasks_by_mask, yield_cpu};
-use stm32f3xx_hal::i2c::{self, Error};
+use stm32f3xx_hal::i2c::{self};
 use stm32f3xx_hal::pac::CorePeripherals;
 use stm32f3xx_hal::pac::Peripherals;
-use wonderos::i2c_no_irq::I2cNoIrq;
 use wonderos::led::Led;
+use wonderos::lsm303dlhc::i2c_no_irq::I2cNoIrq;
 use wonderos::stm32f3_disco_def::{Board, EastLed};
 use wonderos::stm32f3_disco_def::{GyroScl, GyroSda};
 
@@ -67,7 +67,12 @@ async fn get_orientation(i2c: &mut GyroAsyncI2c) -> Result<(i16, i16, i16), Lsm3
     let x = i16::from_be_bytes([buf[0], buf[1]]);
     let z = i16::from_be_bytes([buf[2], buf[3]]);
     let y = i16::from_be_bytes([buf[4], buf[5]]);
-    Ok((x, y, z))
+    if x > 10000 {
+        // never happens
+        Err(Lsm303Error::General)
+    } else {
+        Ok((x, y, z))
+    }
 }
 
 async fn run_magneto(i2c: &mut GyroAsyncI2c) -> Result<(), Lsm303Error> {

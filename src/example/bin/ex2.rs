@@ -5,14 +5,13 @@ use core::future::Future;
 use core::panic::PanicInfo;
 use core::pin::pin;
 use core::time::Duration;
-use defmt::println;
 use defmt_rtt as _;
 use lilos::exec::Notify;
 use stm32f3xx_hal::pac::CorePeripherals;
 use stm32f3xx_hal::pac::Peripherals;
 use wonderos::led::Led;
 use wonderos::stm32f3_disco_def::UserButton;
-use wonderos::stm32f3_disco_def::{Board, EastLed, SouthEastLed, SouthLed};
+use wonderos::stm32f3_disco_def::{Board, EastLed, SouthEastLed};
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
     loop {}

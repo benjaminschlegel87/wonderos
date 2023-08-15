@@ -12,7 +12,7 @@ use nb::block;
 use stm32f3xx_hal::pac::{CorePeripherals, Peripherals};
 use stm32f3xx_hal::prelude::_embedded_hal_blocking_spi_Transfer;
 use stm32f3xx_hal::time::fixed_point::FixedPoint;
-use wonderos::async_spi::{async_read, async_transfer, async_write};
+use wonderos::l3gd20::async_spi::{async_read, async_transfer, async_write};
 use wonderos::led::Led;
 use wonderos::stm32f3_disco_def::{Board, GyroCs, GyroSpi, NorthEastLed};
 #[panic_handler]
