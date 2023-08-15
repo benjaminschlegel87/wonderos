@@ -23,6 +23,7 @@ fn panic_handler(_info: &PanicInfo) -> ! {
 
 //const LSM303DLHC_ADDR_ACC: u8 = 0b0001_1001;
 const LSM303DLHC_ADDR_MAGNETIC: u8 = 0b0001_1110;
+pub struct Lsm303dlhc {}
 type GyroAsyncI2c = I2cNoIrq<GyroScl, GyroSda>;
 #[cortex_m_rt::entry]
 fn main() -> ! {
