@@ -1,6 +1,9 @@
 use super::button::simple_button::{Polarity, SimpleButton};
 use super::led::simple_led::SimpleLed;
-use stm32f3xx_hal::gpio::{Alternate, Gpioa, Gpioe, Input, Output, Pin, PushPull, U};
+use stm32f3xx_hal::gpio::{
+    Alternate, Gpioa, Gpiob, Gpioe, Input, OpenDrain, Output, Pin, PushPull, U,
+};
+use stm32f3xx_hal::i2c::I2c;
 use stm32f3xx_hal::prelude::*;
 use stm32f3xx_hal::rcc::Clocks;
 use stm32f3xx_hal::spi::{config::Config, Spi};
@@ -26,6 +29,10 @@ pub type GyroSpi = Spi<
     u8,
 >;
 
+pub type GyroScl = Pin<Gpiob, U<6>, Alternate<OpenDrain, 4>>;
+pub type GyroSda = Pin<Gpiob, U<7>, Alternate<OpenDrain, 4>>;
+pub type GyroI2c = I2c<stm32f3xx_hal::pac::I2C1, (GyroScl, GyroSda)>;
+
 pub struct Board {
     pub northeast_led: NorthEastLed,
     pub north_led: NorthLed,
@@ -38,6 +45,7 @@ pub struct Board {
     pub user_button: UserButton,
     pub gyro_spi: GyroSpi,
     pub gyro_cs: GyroCs,
+    pub gyro_i2c: GyroI2c,
     pub clocks: Clocks,
 }
 
@@ -45,6 +53,7 @@ impl Board {
     pub fn new(p: stm32f3xx_hal::pac::Peripherals) -> Self {
         let mut rcc = p.RCC.constrain();
         let mut gpioa = p.GPIOA.split(&mut rcc.ahb);
+        let mut gpiob = p.GPIOB.split(&mut rcc.ahb);
         let mut gpioe = p.GPIOE.split(&mut rcc.ahb);
 
         let pe8 = gpioe
@@ -106,6 +115,18 @@ impl Board {
         let config = Config::default().frequency(Kilohertz::new(1));
 
         let spi: Spi<_, _, u8> = Spi::new(p.SPI1, (sck, miso, mosi), config, r, &mut rcc.apb2);
+        // ----------- GYRO SPI -------------------
+
+        let scl =
+            gpiob
+                .pb6
+                .into_af_open_drain::<4>(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrl);
+        let sda =
+            gpiob
+                .pb7
+                .into_af_open_drain::<4>(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrl);
+
+        let i2c = I2c::new(p.I2C1, (scl, sda), 100000.Hz(), r, &mut rcc.apb1);
 
         let ba = Board {
             northeast_led,
@@ -119,6 +140,7 @@ impl Board {
             user_button,
             gyro_spi: spi,
             gyro_cs: pe3,
+            gyro_i2c: i2c,
             clocks: r,
         };
 
