@@ -36,6 +36,8 @@ fn main() -> ! {
 
 async fn task_blinky(led: &mut EastLed) -> Infallible {
     loop {
+        // Timing is:
+        // toggle() execution time + sleep time
         led.toggle();
         lilos::exec::sleep_for(Duration::from_millis(1000)).await;
     }
@@ -44,6 +46,9 @@ async fn task_blinky_timegate(led: &mut NorthEastLed) -> Infallible {
     lilos::exec::sleep_for(Duration::from_millis(500)).await;
     let mut gate = PeriodicGate::from(Duration::from_millis(1000));
     loop {
+        // Timing is:
+        // toggle() is called every 1000ms independent on the time toggle() needs to execute
+        // PeriodicGate sleeps yields Ready every 1000ms
         gate.next_time().await;
         led.toggle();
     }

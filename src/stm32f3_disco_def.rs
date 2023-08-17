@@ -1,13 +1,17 @@
 use super::button::simple_button::{Polarity, SimpleButton};
 use super::led::simple_led::SimpleLed;
+use super::lsm303dlhc::{i2c_no_irq::I2cNoIrq, Lsm303dlhc, MAGNETO_ADDR};
+
 use stm32f3xx_hal::gpio::{
     Alternate, Gpioa, Gpiob, Gpioe, Input, OpenDrain, Output, Pin, PushPull, U,
 };
 use stm32f3xx_hal::i2c::I2c;
+use stm32f3xx_hal::pac::I2C1;
 use stm32f3xx_hal::prelude::*;
 use stm32f3xx_hal::rcc::Clocks;
 use stm32f3xx_hal::spi::{config::Config, Spi};
 use stm32f3xx_hal::time::rate::Kilohertz;
+
 pub type NorthEastLed = SimpleLed<Pin<Gpioe, U<8>, Output<PushPull>>>;
 pub type NorthLed = SimpleLed<Pin<Gpioe, U<9>, Output<PushPull>>>;
 pub type NorthWestLed = SimpleLed<Pin<Gpioe, U<10>, Output<PushPull>>>;
@@ -33,10 +37,6 @@ pub type GyroScl = Pin<Gpiob, U<6>, Alternate<OpenDrain, 4>>;
 pub type GyroSda = Pin<Gpiob, U<7>, Alternate<OpenDrain, 4>>;
 pub type GyroI2c = I2c<stm32f3xx_hal::pac::I2C1, (GyroScl, GyroSda)>;
 
-pub type OtherScl = Pin<Gpioa, U<9>, Alternate<OpenDrain, 4>>;
-pub type OtherSda = Pin<Gpioa, U<10>, Alternate<OpenDrain, 4>>;
-pub type OtherI2c = I2c<stm32f3xx_hal::pac::I2C2, (OtherScl, OtherSda)>;
-
 pub struct Board {
     pub northeast_led: NorthEastLed,
     pub north_led: NorthLed,
@@ -49,9 +49,8 @@ pub struct Board {
     pub user_button: UserButton,
     pub gyro_spi: GyroSpi,
     pub gyro_cs: GyroCs,
-    pub gyro_i2c: GyroI2c,
     pub clocks: Clocks,
-    pub other_i2c: OtherI2c,
+    pub magnetometer: Lsm303dlhc<I2C1, GyroScl, GyroSda>,
 }
 
 impl Board {
@@ -133,23 +132,8 @@ impl Board {
 
         let i2c = I2c::new(p.I2C1, (scl, sda), 100000.Hz(), r, &mut rcc.apb1);
 
-        let other_scl =
-            gpioa
-                .pa9
-                .into_af_open_drain::<4>(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
-        let other_sda = gpioa.pa10.into_af_open_drain::<4>(
-            &mut gpioa.moder,
-            &mut gpioa.otyper,
-            &mut gpioa.afrh,
-        );
-
-        let other_i2c = I2c::new(
-            p.I2C2,
-            (other_scl, other_sda),
-            100000.Hz(),
-            r,
-            &mut rcc.apb1,
-        );
+        let async_i2c = I2cNoIrq::new(i2c, MAGNETO_ADDR);
+        let magnetometer = Lsm303dlhc::new(async_i2c);
 
         let ba = Board {
             northeast_led,
@@ -163,9 +147,8 @@ impl Board {
             user_button,
             gyro_spi: spi,
             gyro_cs: pe3,
-            gyro_i2c: i2c,
             clocks: r,
-            other_i2c,
+            magnetometer,
         };
 
         ba

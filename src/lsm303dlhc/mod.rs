@@ -11,6 +11,7 @@ use stm32f3xx_hal::i2c::{Error, Instance};
 pub const ACCEL_ADDR: u8 = 0b0001_1110;
 pub const MAGNETO_ADDR: u8 = 0b0001_1110;
 const CRA_REG_M: u8 = 0x00;
+const CRB_REG_M: u8 = 0x01;
 const MR_REG_M: u8 = 0x02;
 
 #[derive(Debug)]
@@ -47,8 +48,9 @@ impl<T: Instance, SCL, SDA> Lsm303dlhc<T, SCL, SDA> {
         }
     }
     pub async fn setup(&mut self) -> Result<(), Lsm303Error> {
+        self.i2c.write(&[CRA_REG_M, 0b1001_1100], true).await?;
+        self.i2c.write(&[CRB_REG_M, 0b0010_0000], true).await?;
         self.i2c.write(&[MR_REG_M, 0b00], true).await?;
-        self.i2c.write(&[CRA_REG_M, 0b0001000], true).await?;
         Ok(())
     }
 }

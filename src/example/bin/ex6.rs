@@ -2,34 +2,33 @@
 #![no_std]
 use core::panic::PanicInfo;
 use core::pin::pin;
+use defmt::println;
 use defmt_rtt as _;
 use stm32f3xx_hal::pac::CorePeripherals;
-use stm32f3xx_hal::pac::{Peripherals, I2C1, I2C2};
-use wonderos::lsm303dlhc::i2c_no_irq::I2cNoIrq;
-use wonderos::lsm303dlhc::{Lsm303dlhc, MAGNETO_ADDR};
-use wonderos::stm32f3_disco_def::{Board, OtherScl, OtherSda};
-use wonderos::stm32f3_disco_def::{GyroScl, GyroSda};
+use stm32f3xx_hal::pac::Peripherals;
+use wonderos::stm32f3_disco_def::Board;
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
+    println!("Paniced");
     loop {}
 }
-
-type GyroAsyncI2c = I2cNoIrq<I2C1, GyroScl, GyroSda>;
-type OtherAsyncI2c = I2cNoIrq<I2C2, OtherScl, OtherSda>;
 #[cortex_m_rt::entry]
 fn main() -> ! {
+    // Take Cortex-M and STM32 Peripherials
     let mut core = CorePeripherals::take().unwrap();
     let p = Peripherals::take().unwrap();
 
+    // Create Board Abstraction
     let b = Board::new(p);
 
-    let i2c: GyroAsyncI2c = I2cNoIrq::new(b.gyro_i2c, MAGNETO_ADDR);
-    let magn = Lsm303dlhc::new(i2c);
-    let _other: OtherAsyncI2c = I2cNoIrq::new(b.other_i2c, 5 as u8);
-
+    // Basic Blinky Task
     let t = pin!(wonderos::task_blinky(b.east_led,));
+    // Always Wake all Tasks Task
     let w = pin!(wonderos::wake());
-    let g = pin!(wonderos::task_magnetometer(b.user_button, magn));
+    // Magnetometer logic task
+    let g = pin!(wonderos::task_magnetometer(b.user_button, b.magnetometer));
+    // Give lilos a systick to provide delays
     lilos::time::initialize_sys_tick(&mut core.SYST, b.clocks.sysclk().0);
+    // Run tasks forever
     lilos::exec::run_tasks(&mut [t, g, w], lilos::exec::ALL_TASKS);
 }
