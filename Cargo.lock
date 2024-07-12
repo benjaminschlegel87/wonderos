@@ -473,6 +473,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "stm32f3"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b28b37228ef3fa47956af38c6abd756e912f244c1657f14e66d42fc8d74ea96f"
+dependencies = [
+ "bare-metal 1.0.0",
+ "cortex-m",
+ "cortex-m-rt",
+ "vcell",
+]
+
+[[package]]
 name = "stm32f3xx-hal"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -492,7 +504,7 @@ dependencies = [
  "rtcc",
  "slice-group-by",
  "stm32-usbd",
- "stm32f3",
+ "stm32f3 0.14.0",
  "void",
 ]
 
@@ -589,5 +601,6 @@ dependencies = [
  "lilos",
  "nb 1.1.0",
  "panic-probe",
+ "stm32f3 0.15.1",
  "stm32f3xx-hal",
 ]

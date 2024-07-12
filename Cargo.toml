@@ -31,6 +31,13 @@ path = "src/example/bin/ex6.rs"
 [[bin]]
 name = "example_7"
 path = "src/example/bin/ex7.rs"
+[[bin]]
+name = "example_8"
+path = "src/example/bin/ex8.rs"
+
+[[bin]]
+name = "example_9"
+path = "src/example/bin/ex9.rs"
 
 
 [dependencies]
@@ -43,6 +50,7 @@ stm32f3xx-hal = { version = "0.9.2", features = ["stm32f303xc", "ld"] }
 lilos = "0.3.6"
 panic-probe = { version = "0.3.0", features = ["print-defmt"] }
 nb = "1.1.0"
+stm32f3 = "0.15.1"
 
 
 # cargo build/run

@@ -4,7 +4,6 @@ use core::convert::Infallible;
 use core::panic::PanicInfo;
 use core::pin::pin;
 use core::time::Duration;
-use defmt::println;
 use defmt_rtt as _;
 use lilos::handoff::{Handoff, Pop, Push};
 use stm32f3xx_hal::pac::{CorePeripherals, Peripherals};
@@ -31,8 +30,6 @@ fn main() -> ! {
     let r = pin!(blink_on_acceleration(&mut b.north_led, x_acc_rx));
     let wake = pin!(wake());
     let blink = pin!(blink_parallel(&mut b.northeast_led));
-
-    println!("Use print");
 
     lilos::time::initialize_sys_tick(&mut core.SYST, b.clocks.sysclk().integer());
     lilos::exec::run_tasks(&mut [g, r, blink, wake], lilos::exec::ALL_TASKS);

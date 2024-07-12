@@ -2,7 +2,10 @@
 #![no_std]
 use core::mem::size_of;
 use core::panic::PanicInfo;
+//
 use defmt_rtt as _;
+// stm32f3xx_hal provides a memory.x linker file which is nedded by cortex-m-rt
+// we could put a memory.x in this crate directly so we would not need this line
 use stm32f3xx_hal as _;
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
